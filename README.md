@@ -4,6 +4,8 @@
 
 A modern, full-stack document summarization tool built with **Vite + React** frontend and **Express.js** backend. Mind-Mesh intelligently extracts and summarizes content from various document formats and web URLs.
 
+> _Note: Mind-Mesh was originally created as an academic Sem-5 project and continues to evolve into a production-ready toolkit._
+
 ## ✨ Features
 
 - 📄 **Multi-format Support**: PDF, DOCX, PPTX, TXT, and image files
@@ -259,4 +261,3 @@ Expect JSON with `summary`, `provider`, `highlights`.
 - HTML sanitized (scripts/styles/navigation removed) before summarization.
 - PPTX conversion uses LibreOffice if installed.
 - Image OCR not implemented (placeholder message returned).
-
