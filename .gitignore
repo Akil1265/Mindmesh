@@ -3,11 +3,19 @@ node_modules/
 client/node_modules/
 server/node_modules/
 
-# Build outputs
-dist/
+# Build output
+/dist/
 client/dist/
 server/dist/
 coverage/
+client/coverage/
+server/coverage/
+
+# Environment files
+*.env
+!.env.example
+server/.env
+client/.env
 
 # Logs
 *.log
@@ -15,19 +23,19 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Runtime files
+# Uploads and generated assets
 uploads/
 server/uploads/
-client/uploads/
 
-# Environment
-.env
-server/.env
-client/.env
-.env.local
-.env.*.local
+# IDE/editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# Misc
+# OS generated files
 .DS_Store
 Thumbs.db
-*.pem
+
+# Vite cache
+client/.vite/

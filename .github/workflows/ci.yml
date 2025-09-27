@@ -2,56 +2,32 @@ name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
 
 jobs:
-  build-test:
+  build-and-test:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: 20
           cache: 'npm'
 
-      - name: Install root dependencies (if workspace scripts provided)
-        run: |
-          npm install --workspaces=false || true
+      - name: Install dependencies
+        run: npm install
 
-      - name: Install server dependencies
-        run: |
-          cd server
-          npm ci
+      - name: Lint
+        run: npm run lint
 
-      - name: Install client dependencies
-        run: |
-          cd client
-          npm ci
+      - name: Test
+        run: npm test
 
-      - name: Lint (server)
-        run: |
-          cd server
-          npx eslint . || echo "(No eslint config yet – skipping failures)"
-
-      - name: Run server tests
-        env:
-          GEMINI_API_KEY: dummy
-        run: |
-          cd server
-          npm test
-
-      - name: Build client
-        run: |
-          cd client
-          npm run build
-
-      - name: Archive build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: client-dist
-          path: client/dist
+      - name: Build
+        run: npm run build
