@@ -1,0 +1,14 @@
+{
+  "watch": [
+    "index.js",
+    "routes",
+    "services"
+  ],
+  "ignore": [
+    "uploads/**",
+    "coverage/**",
+    "**/.lo-tmp/**"
+  ],
+  "ext": "js,json",
+  "delay": "200ms"
+}

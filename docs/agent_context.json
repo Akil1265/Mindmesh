@@ -1,0 +1,36 @@
+{
+  "name": "Mind-Mesh",
+  "date": "2025-09-27",
+  "backend": {
+    "port": 4000,
+    "endpoints": {
+      "health": {"method": "GET", "path": "/health"},
+      "supportedTypes": {"method": "GET", "path": "/api/supported-types"},
+      "uploadAndSummarize": {"method": "POST", "path": "/api/upload-and-summarize"},
+      "testOcr": {"method": "POST", "path": "/api/test-ocr"},
+      "summarize": {"method": "POST", "path": "/api/summarize"}
+    },
+    "files": {
+      "routes": ["server/routes/fileUpload.js", "server/routes/summarize.js", "server/routes/ocrTest.js"],
+      "services": ["server/services/extractText.js", "server/services/summarizeProvider.js"]
+    },
+    "supported": {
+      "documents": ["PDF", "DOCX", "PPTX", "DOC", "PPT", "TXT", "HTML"],
+      "images": ["JPEG", "JPG", "PNG", "GIF", "BMP", "TIFF"]
+    },
+    "limits": {"maxFileSizeMB": 50}
+  },
+  "frontend": {
+    "stack": ["React", "Vite", "Tailwind"],
+    "files": ["client/src/components/FileUpload.jsx", "client/src/App.jsx"]
+  },
+  "env": {
+    "required": ["GEMINI_API_KEY"],
+    "optional": ["SILENCE_LIBRE_WARNING", "OCR_ENABLED", "OCR_LANGUAGES", "PORT"]
+  },
+  "notes": [
+    "Gemini API quota may block summaries; extraction still returns.",
+    "LibreOffice required for PPTX/DOC/PPT conversion (set SOFFICE_PATH if not in PATH).",
+    "OCR uses Tesseract.js; configure languages via OCR_LANGUAGES."
+  ]
+}

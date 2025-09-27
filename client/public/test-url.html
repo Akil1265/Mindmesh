@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test URL Summarization</title>
+</head>
+<body>
+    <h1>Test URL Summarization</h1>
+    <button onclick="testUrl()">Test URL Summarization</button>
+    <div id="output"></div>
+
+    <script>
+    async function testUrl() {
+        const output = document.getElementById('output');
+        output.innerHTML = 'Testing...';
+        
+        try {
+            const formData = new FormData();
+            formData.append('url', 'https://hub.synerise.com/docs/automation/integration/whats-app/send-template-message/');
+            formData.append('provider', 'gemini');
+            formData.append('summaryStyle', 'short');
+
+            const resp = await fetch('http://localhost:4000/api/summarize/stream', {
+                method: 'POST',
+                body: formData,
+                headers: { 'x-stream-progress': '1' }
+            });
+            
+            if (!resp.ok) {
+                throw new Error('Request failed: ' + resp.status);
+            }
+            
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+            
+            output.innerHTML = '<h3>Stream Events:</h3><pre>';
+            
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                
+                let idx;
+                while ((idx = buffer.indexOf('\n\n')) >= 0) {
+                    const rawEvent = buffer.slice(0, idx).trim();
+                    buffer = buffer.slice(idx + 2);
+                    if (!rawEvent) continue;
+                    
+                    output.innerHTML += rawEvent + '\n\n';
+                    
+                    const lines = rawEvent.split(/\n/);
+                    let eventName = null;
+                    let dataLine = '';
+                    for (const ln of lines) {
+                        if (ln.startsWith('event:')) eventName = ln.replace('event:', '').trim();
+                        else if (ln.startsWith('data:')) dataLine += ln.replace('data:', '').trim();
+                    }
+                    
+                    if (eventName === 'summary' && dataLine) {
+                        try {
+                            const payload = JSON.parse(dataLine);
+                            output.innerHTML += '\n<h3>Summary Found:</h3><div style="background:#f0f0f0;padding:10px;margin:10px 0;">' + payload.summary + '</div>\n';
+                        } catch (e) {
+                            console.warn('Failed to parse summary', e);
+                        }
+                    }
+                }
+            }
+            output.innerHTML += '</pre>';
+        } catch (err) {
+            output.innerHTML = 'Error: ' + err.message;
+            console.error('Test error:', err);
+        }
+    }
+    </script>
+</body>
+</html>

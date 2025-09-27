@@ -1,0 +1,14 @@
+This is a test document for the Mind-Mesh file upload and summarization system.
+
+The system can process various file types including PDF, DOCX, PPTX, DOC, PPT, and images using OCR technology.
+
+This document contains multiple paragraphs to test the text extraction and summarization functionality.
+
+Key features:
+- File upload support
+- Text extraction from documents
+- OCR for images
+- AI-powered summarization
+- Multiple summary styles
+
+The system uses Gemini API for generating intelligent summaries with highlights and different styles based on user preferences.

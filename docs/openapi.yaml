@@ -1,0 +1,63 @@
+openapi: 3.0.3
+info:
+  title: Mind-Mesh API
+  version: 1.0.0
+servers:
+  - url: http://localhost:4000
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+  /api/supported-types:
+    get:
+      summary: Get supported file types and options
+      responses:
+        '200':
+          description: Supported types
+  /api/upload-and-summarize:
+    post:
+      summary: Upload a document or image, extract text, and summarize
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                summaryStyle:
+                  type: string
+                  enum: [short, medium, long, bullets]
+                language:
+                  type: string
+                  default: en
+      responses:
+        '200':
+          description: Summary with metadata
+  /api/test-ocr:
+    post:
+      summary: OCR test endpoint for images
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: OCR result
+  /api/summarize:
+    post:
+      summary: Summarize provided text or uploaded file (streaming supported)
+      responses:
+        '200':
+          description: Summary result or stream
