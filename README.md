@@ -25,24 +25,11 @@ Mind-Mesh intelligently extracts and summarizes content from various document fo
 
 ## 🛠️ Tech Stack
 
-### Frontend
-- **Vite** - Next generation frontend build tool
-- **React 18** - Modern React with hooks and concurrent features  
-- **Tailwind CSS** - Utility-first CSS framework
 - **Axios** - HTTP client for API calls
 
 ### Backend
 - **Express.js** - Web framework
 - **Multer** - File upload handling  
-- **Helmet** - Security middleware
-- **Gemini AI** - Google's generative AI
-- **pdf-parse** - PDF text extraction
-- **mammoth** - DOCX processing
-- **pdfkit, docx, pptxgenjs** - Export generation
-
-## 🚀 Quick Start
-
-### Prerequisites
 - **For Python Backend**: Python 3.8+ 
 - **For Node.js Backend**: Node.js (v18 or higher)
 - npm or yarn
@@ -50,16 +37,8 @@ Mind-Mesh intelligently extracts and summarizes content from various document fo
 ### Installation
 
 1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/mind-mesh.git
-   cd mind-mesh
-   ```
 
 2. **Install dependencies**
-   ```bash
-   npm run install:all
-   ```
-
 3. **Configure environment**
    ```bash
    # Create .env file in server directory
@@ -67,29 +46,21 @@ Mind-Mesh intelligently extracts and summarizes content from various document fo
    cp .env.example .env
    # Add your Gemini API key to .env
    ```
-
 4. **Start development servers**
    ```bash
    npm run dev
    ```
-
    This will start:
    - Backend (Express): `http://localhost:4000`
    - Frontend (Vite): `http://localhost:3000`
    - Frontend (Vite): `http://localhost:3000`
 
-### Client
-```bash
-cd client
 npm install
 npm run dev
 ```
-
-### Server
 ```bash
 cd server
 npm install
-npm run dev
 ```
 
 ### Endpoints
@@ -97,41 +68,26 @@ npm run dev
 - `POST /api/summarize` → classic single-response summarization / export
 - `POST /api/summarize/stream` → streaming progress (Server-Sent-Events style over POST) using header `x-stream-progress: 1`
 
-## Milestones
-1. Input handling (text, pdf, docs, pptx, images, urls)
 2. Extraction layer (`extractText.js`)
 3. Summarization logic (`summarizeProvider.js`)
 4. Export generators (`exportGenerators.js`)
-5. Client display + download options
 6. UI polish + deploy
 
 ## API Usage Examples
 
 ### JSON Preview (no file download)
-```bash
-curl -X POST http://localhost:4000/api/summarize \
    -F "text=Mindmesh lets users summarize documents quickly." \
    -F "summaryStyle=medium"
 ```
-
-### Single PDF Export
 ```bash
 curl -X POST http://localhost:4000/api/summarize \
    -F "text=Mindmesh supports multi-format export" \
-   -F "output=pdf" \
-   -o summary.pdf
-```
 
 ### Multiple Formats (ZIP)
 ```bash
-curl -X POST http://localhost:4000/api/summarize \
-   -F "text=Mindmesh multi export demo" \
    -F "output=pdf,docx,txt" \
    -o bundle.zip
 ```
-
-### With URL
-```bash
 curl -X POST http://localhost:4000/api/summarize \
    -F "url=https://example.com" \
    -F "output=txt"
