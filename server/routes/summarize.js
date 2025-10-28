@@ -60,8 +60,8 @@ router.post('/', upload.single('file'), async (req, res) => {
     console.log(`[DEBUG] Summary generated (${result.provider}): "${result.summary.slice(0, 100)}${result.summary.length > 100 ? '...' : ''}"`)  
 
     if (formats.length === 0) {
-      // JSON preview mode
-      return res.json(result)
+      // JSON preview mode - include extracted text for later download
+      return res.json({ ...result, extracted })
     }
 
     try {
@@ -144,7 +144,8 @@ router.post('/stream', upload.single('file'), async (req, res) => {
     // Summarization progress (basic heuristic: chunk count)
     send('stage', { stage: 'summarizing', provider, style: summaryStyle })
     const summaryResult = await summarize(extracted, { provider, style: summaryStyle })
-    send('summary', summaryResult)
+    // Include extracted text in summary event
+    send('summary', { ...summaryResult, extracted })
 
     if (aborted) return safeEnd()
 

@@ -1,0 +1,247 @@
+import 'dotenv/config'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+
+// --- Provider bootstrap (Gemini) ---
+const apiKey = process.env.GEMINI_API_KEY
+// Default to a stable, widely supported model (Gemini 2.5 Flash is the latest stable)
+const requestedModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+// Ordered fallback preference list (attempt in sequence until one initializes)
+// Using Gemini 2.x models (1.5 models were deprecated in 2025)
+const GEMINI_MODEL_CANDIDATES = [
+  requestedModel,
+  'gemini-2.5-flash',           // Latest stable flash model (June 2025)
+  'gemini-flash-latest',         // Always points to latest flash
+  'gemini-2.0-flash',            // Stable 2.0 flash
+  'gemini-2.5-pro',              // Latest stable pro model
+  'gemini-pro-latest'            // Always points to latest pro
+]
+let geminiModel = null
+if (apiKey) {
+  for (const m of GEMINI_MODEL_CANDIDATES) {
+    if (geminiModel) break
+    try {
+  const genAI = new GoogleGenerativeAI(apiKey)
+  geminiModel = genAI.getGenerativeModel({ model: m })
+  console.log(`[summarizeProvider] Gemini model initialized: ${m}`)
+    } catch (e) {
+      console.warn(`[summarizeProvider] Gemini model init failed for ${m}: ${e.message}`)
+    }
+  }
+  if (!geminiModel) console.error('All Gemini model initialization attempts failed. Falling back to local summarizer.')
+} else {
+  console.warn('GEMINI_API_KEY not set. Gemini provider unavailable; using local fallback.')
+}
+
+// --- Styles configuration ---
+const STYLE_TARGETS = {
+  short: { 
+    type: 'brief',
+    sentences: 2,
+    maxWords: 50,
+    description: 'Very brief, 1-2 sentences capturing the main idea only'
+  },
+  medium: { 
+    type: 'paragraph',
+    sentences: 5,
+    maxWords: 150,
+    description: 'Concise paragraph with key points and main ideas'
+  },
+  long: { 
+    type: 'detailed',
+    sentences: 15,
+    maxWords: 500,
+    description: 'Comprehensive detailed summary with multiple paragraphs covering all important aspects'
+  },
+  bullets: {
+    type: 'bullets',
+    sentences: 8,
+    maxWords: 200,
+    description: 'Bullet point list of key information'
+  }
+}
+
+// --- Public API ---
+export async function summarize(text, { provider = 'gemini', style = 'short' } = {}) {
+  const cleaned = (text || '').trim()
+  if (!cleaned) return buildResult({ summary: 'No extractable textual content.', provider: 'gemini', highlights: [] })
+
+  // Basic chunking by char length (approx token ~ 4 chars heuristic)
+  const MAX_CHARS_PER_CHUNK = 12000
+  const chunks = chunkText(cleaned, MAX_CHARS_PER_CHUNK)
+
+  const intermediateSummaries = []
+  for (const chunk of chunks) {
+    const s = await runProvider(provider, chunk, style)
+    intermediateSummaries.push(s)
+  }
+
+  let finalSummary
+  if (intermediateSummaries.length === 1) {
+    finalSummary = intermediateSummaries[0]
+  } else {
+    // Merge step
+    const mergeText = intermediateSummaries.join('\n\n')
+    finalSummary = await runProvider(provider, mergeText, style, { isMeta: true })
+  }
+
+  const highlights = extractHighlights(cleaned)
+  return buildResult({ summary: finalSummary, provider: effectiveProvider(provider), highlights, chunks: chunks.length })
+}
+
+// --- Provider dispatcher ---
+async function runProvider(requested, text, style, { isMeta = false } = {}) {
+  if (!geminiModel) {
+    throw new Error('Gemini AI not available. Please configure GEMINI_API_KEY.')
+  }
+  return await geminiSummarize(text, style, { isMeta })
+}
+
+function effectiveProvider(requested) {
+  if (geminiModel) return 'gemini'
+  throw new Error('No AI provider available')
+}
+
+// --- Gemini implementation ---
+async function geminiSummarize(text, style, { isMeta }) {
+  if (!geminiModel) {
+    throw new Error('Gemini model not initialized')
+  }
+  const styleCfg = STYLE_TARGETS[style] || STYLE_TARGETS.short
+  
+  // Build style-specific instructions
+  let styleInstructions = ''
+  switch (styleCfg.type) {
+    case 'brief':
+      styleInstructions = `Create a VERY SHORT summary in 1-2 sentences (maximum ${styleCfg.maxWords} words). Capture only the core message.`
+      break
+    case 'paragraph':
+      styleInstructions = `Create a MEDIUM-LENGTH summary as a single paragraph (around ${styleCfg.maxWords} words). Include main points and key details in flowing sentences.`
+      break
+    case 'detailed':
+      styleInstructions = `Create a COMPREHENSIVE, DETAILED summary (around ${styleCfg.maxWords} words). Write multiple paragraphs covering:
+- Main topic and context
+- Key points and arguments
+- Supporting details and examples
+- Conclusions or implications
+Use clear paragraphs separated by double line breaks.`
+      break
+    case 'bullets':
+      styleInstructions = `Create a BULLET POINT summary with 5-8 key points (around ${styleCfg.maxWords} words total).
+Format each bullet starting with "• " or "- " on its own line.
+Each bullet should be concise and capture one important idea.`
+      break
+  }
+  
+  const system = `You are an expert summarization assistant. You MUST follow the exact style requested.`
+  const task = isMeta 
+    ? 'The following are partial summaries. Merge them into one cohesive summary without adding new information.' 
+    : 'Summarize the following content accurately and completely.'
+  
+  const instructions = `${system}
+
+${task}
+
+STYLE REQUIREMENTS:
+${styleInstructions}
+
+IMPORTANT RULES:
+- Preserve all key facts and important details
+- Do NOT fabricate or add information not in the source
+- Write in clear, professional English
+- Use plain text only (no markdown formatting like ** or __)
+${styleCfg.type === 'bullets' ? '- Start each bullet with "• " or "- "' : ''}
+${styleCfg.type === 'detailed' ? '- Separate paragraphs with double line breaks (\\n\\n)' : ''}
+
+INPUT TEXT:
+"""
+${text}
+"""
+
+YOUR SUMMARY:`
+  try {
+    const result = await geminiModel.generateContent(instructions)
+    const out = result.response.text().trim()
+    return sanitizeOutput(out, styleCfg)
+  } catch (e) {
+    console.error('Gemini summarization failed:', e.message)
+    // If model is not found/unsupported for this API version, try other candidates once
+    const msg = String(e?.message || '').toLowerCase()
+    if (msg.includes('404') || msg.includes('not found') || msg.includes('not supported')) {
+      const apiKey = process.env.GEMINI_API_KEY
+      if (apiKey) {
+        for (const m of GEMINI_MODEL_CANDIDATES) {
+          try {
+            const genAI = new GoogleGenerativeAI(apiKey)
+            const model = genAI.getGenerativeModel({ model: m })
+            const test = await model.generateContent('Return the single word: ok')
+            const ok = test.response.text().trim().toLowerCase().includes('ok')
+            if (ok) {
+              geminiModel = model
+              console.log(`[summarizeProvider] Switched Gemini model to: ${m}`)
+              const result = await geminiModel.generateContent(instructions)
+              const out = result.response.text().trim()
+              return sanitizeOutput(out, styleCfg)
+            }
+          } catch (_) {
+            // try next
+          }
+        }
+      }
+    }
+    // No fallback - throw error if all models fail
+    throw new Error('All Gemini models failed. Please check your API key and internet connection.')
+  }
+}
+
+// --- Utility: highlights extraction (top N longest informative sentences) ---
+function extractHighlights(text, max = 5) {
+  const sentences = splitSentences(text)
+  const scored = sentences
+    .map(s => ({ s: s.trim(), score: scoreSentence(s) }))
+    .filter(o => o.s.length > 25)
+    .sort((a, b) => b.score - a.score)
+  return scored.slice(0, max).map(o => o.s)
+}
+
+function scoreSentence(s) {
+  // crude scoring: length weight + count of nouns/ proper looking words
+  const len = Math.min(s.length / 80, 1)
+  const keywordMatches = (s.match(/[A-Z][a-z]+/g) || []).length
+  return len * 0.6 + Math.min(keywordMatches / 8, 0.4)
+}
+
+// --- Helpers ---
+function splitSentences(text) {
+  return (text
+    .replace(/\s+/g, ' ')
+    .match(/[^.!?]+[.!?]/g) || [text]).map(t => t.trim())
+}
+
+function chunkText(text, maxChars) {
+  if (text.length <= maxChars) return [text]
+  const chunks = []
+  let start = 0
+  while (start < text.length) {
+    const end = Math.min(start + maxChars, text.length)
+    chunks.push(text.slice(start, end))
+    start = end
+  }
+  return chunks
+}
+
+function sanitizeOutput(out, styleCfg) {
+  // For detailed summaries, be more lenient with length (allow up to 1.5x the target)
+  const maxAllowed = styleCfg.type === 'detailed' 
+    ? Math.floor(styleCfg.maxWords * 1.5)
+    : Math.floor(styleCfg.maxWords * 1.2)
+  
+  const words = out.split(/\s+/)
+  if (words.length > maxAllowed) {
+    return words.slice(0, maxAllowed).join(' ') + '…'
+  }
+  return out
+}
+
+function buildResult({ summary, provider, highlights, chunks }) {
+  return { summary, provider, highlights, chunks }
+}

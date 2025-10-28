@@ -2,18 +2,26 @@
 
 ![CI](https://github.com/yourusername/mind-mesh/actions/workflows/ci.yml/badge.svg)
 
-A modern, full-stack document summarization tool built with **Vite + React** frontend and **Express.js** backend. Mind-Mesh intelligently extracts and summarizes content from various document formats and web URLs.
+A modern, full-stack document summarization tool with intelligent AI:
+- 🤖 **Gemini AI** - Google's powerful cloud AI for accurate summaries
+- � **Local Fallback** - JavaScript-based summarization when offline
+- ⚡ **Vite + React** - Modern frontend with streaming progress
+
+Mind-Mesh intelligently extracts and summarizes content from various document formats and web URLs with support for multiple summary styles and export formats.
 
 > _Note: Mind-Mesh was originally created as an academic Sem-5 project and continues to evolve into a production-ready toolkit._
 
 ## ✨ Features
 
-- 📄 **Multi-format Support**: PDF, DOCX, PPTX, TXT, and image files
+- 📄 **Multi-format Support**: PDF, DOCX, PPTX, TXT, and image files with OCR
+- 🤖 **Gemini AI**: Google's powerful AI for intelligent summaries
+- 🎯 **4 Summary Styles**: Short, Medium, Long, and Bullets
+- 📤 **5 Export Formats**: TXT, PDF, DOCX, PPTX, PNG
 - 🌐 **URL Processing**: Extract and summarize content from web pages
-- ⚡ **Fast Development**: Powered by Vite for instant hot module replacement
 - 🎨 **Modern UI**: Responsive design with Tailwind CSS
 - 🔒 **Security**: Built-in rate limiting and security headers
-- 📱 **Mobile Friendly**: Responsive design that works on all devices
+- 📱 **Mobile Friendly**: Works on all devices
+- ⚡ **Streaming Progress**: Real-time updates during processing
 
 ## 🛠️ Tech Stack
 
@@ -24,16 +32,19 @@ A modern, full-stack document summarization tool built with **Vite + React** fro
 - **Axios** - HTTP client for API calls
 
 ### Backend
-- **Node.js** - JavaScript runtime
 - **Express.js** - Web framework
-- **Multer** - File upload handling
+- **Multer** - File upload handling  
 - **Helmet** - Security middleware
-- **CORS** - Cross-origin resource sharing
+- **Gemini AI** - Google's generative AI
+- **pdf-parse** - PDF text extraction
+- **mammoth** - DOCX processing
+- **pdfkit, docx, pptxgenjs** - Export generation
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js (v18 or higher)
+- **For Python Backend**: Python 3.8+ 
+- **For Node.js Backend**: Node.js (v18 or higher)
 - npm or yarn
 
 ### Installation
@@ -44,19 +55,28 @@ A modern, full-stack document summarization tool built with **Vite + React** fro
    cd mind-mesh
    ```
 
-2. **Install dependencies for all packages**
+2. **Install dependencies**
    ```bash
    npm run install:all
    ```
 
-3. **Start development servers**
+3. **Configure environment**
+   ```bash
+   # Create .env file in server directory
+   cd server
+   cp .env.example .env
+   # Add your Gemini API key to .env
+   ```
+
+4. **Start development servers**
    ```bash
    npm run dev
    ```
 
    This will start:
-   - Frontend (Vite): `http://localhost:3000`
    - Backend (Express): `http://localhost:4000`
+   - Frontend (Vite): `http://localhost:3000`
+   - Frontend (Vite): `http://localhost:3000`
 
 ### Client
 ```bash
@@ -179,17 +199,25 @@ data: {"summary":"..."}
 
 ## Environment Variables
 
-See `.env.example` at repo root. Typical `server/.env`:
+### Backend Configuration (.env in server/)
 ```env
-GEMINI_API_KEY=your_key
-GEMINI_MODEL=gemini-pro
+# Server Configuration
 PORT=4000
+NODE_ENV=development
+
+# Gemini AI (Required for cloud AI)
+GEMINI_API_KEY=your-gemini-api-key-here
+
+# Client Configuration  
 VITE_API_URL=http://localhost:4000
-```
-Optional placeholders for future providers:
-```env
-OPENAI_API_KEY=your_openai_key
-SUMMARIZER_PROVIDER=gemini
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MINUTES=1
+RATE_LIMIT_MAX_REQUESTS=60
+
+# OCR Configuration
+OCR_ENABLED=true
+OCR_LANGUAGES=eng
 ```
 
 ## 🧪 Testing

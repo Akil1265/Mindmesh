@@ -160,7 +160,7 @@ router.post('/upload-and-summarize', upload.single('file'), async (req, res) => 
     console.log(`🔧 Provider: ${summary.provider}`);
     console.log(`📊 Chunks processed: ${summary.chunks}`);
 
-    // Return the summary with metadata
+    // Return the summary with metadata and the actual extracted text (for client display)
     res.json({
       success: true,
       file: {
@@ -172,6 +172,8 @@ router.post('/upload-and-summarize', upload.single('file'), async (req, res) => 
         textLength: extractedText.length,
         processingTime: extractionTime
       },
+      // Provide the extracted text explicitly for parity with streaming summarize route
+      extracted: extractedText,
       summary: {
         ...summary,
         processingTime: summarizationTime,

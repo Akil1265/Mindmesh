@@ -1,5 +1,5 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react'
 import axios from 'axios'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useToast } from './ToastHost'
 
 // Utility to download blobs with a filename
@@ -29,17 +29,17 @@ function FileUpload({
   setMeta,
   setLoading,
   loading,
-  selectedFormats,
   providerPref,
   stylePref,
   onProviderChange,
   onStyleChange,
-  setFormatStatus,
-  setProgressLabel
+  setProgressLabel,
+  setExtractedText
 }) {
   // State declarations
   const [file, setFile] = useState(null)
   const [url, setUrl] = useState('')
+  const [urlError, setUrlError] = useState('')
   const [provider, setProvider] = useState(providerPref || 'gemini')
   const [style, setStyle] = useState(stylePref || 'short')
   const [rawText, setRawText] = useState('')
@@ -49,10 +49,49 @@ function FileUpload({
   const dropRef = useRef(null)
   const abortRef = useRef(null)
   const streamingRef = useRef(false)
+  const startTimeRef = useRef(null)
+  
+  // URL Validation function
+  const validateUrl = (urlString) => {
+    if (!urlString || urlString.trim().length === 0) {
+      setUrlError('')
+      return false
+    }
+    
+    try {
+      const urlObj = new URL(urlString)
+      // Only accept http and https protocols
+      if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+        setUrlError('URL must start with http:// or https://')
+        return false
+      }
+      // Check if it has a valid domain
+      if (!urlObj.hostname || urlObj.hostname.length < 3) {
+        setUrlError('Invalid domain name')
+        return false
+      }
+      setUrlError('')
+      return true
+    } catch (e) {
+      setUrlError('Please enter a valid website URL (e.g., https://example.com)')
+      return false
+    }
+  }
+  
+  // Handle URL input change with validation
+  const handleUrlChange = (e) => {
+    const newUrl = e.target.value
+    setUrl(newUrl)
+    if (newUrl.trim().length > 0) {
+      validateUrl(newUrl)
+    } else {
+      setUrlError('')
+    }
+  }
 
   useEffect(() => { onProviderChange && onProviderChange(provider) }, [provider])
   useEffect(() => { onStyleChange && onStyleChange(style) }, [style])
-  
+
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
   // Derived variables
@@ -117,11 +156,7 @@ function FileUpload({
   }
 
   const resetStatuses = () => {
-    if (setFormatStatus) {
-      const next = {}
-      selectedFormats.forEach(f => { next[f] = 'pending' })
-      setFormatStatus(next)
-    }
+    // No longer needed - format status removed
   }
 
   const cancelActive = () => {
@@ -137,25 +172,36 @@ function FileUpload({
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
+    // Validate URL if using URL tab
+    if (activeTab === 'url' && url) {
+      if (!validateUrl(url)) {
+        toast?.push(urlError || 'Please enter a valid website URL', { type: 'error' })
+        return
+      }
+    }
+
     if (!canSubmit) {
       setError(getSubmitError())
       return
     }
-    
+
     // Check for conflicts
     const inputCount = (hasUrl ? 1 : 0) + (hasFile ? 1 : 0) + (hasText ? 1 : 0)
     if (inputCount > 1) {
       setError('Multiple inputs detected. Please clear unused fields to avoid conflicts.')
       return
     }
-    
+
     setError(null)
     setLoading(true)
     setSummary('')
     setHighlights([])
     setMeta(null)
-    setProgressLabel && setProgressLabel(selectedFormats.length > 0 ? 'Preparing export…' : 'Summarizing…')
+    setProgressLabel && setProgressLabel('Summarizing…')
+    
+    // Start timer
+    startTimeRef.current = Date.now()
 
     // File upload endpoint
     if (activeTab === 'file' && file) {
@@ -170,7 +216,7 @@ function FileUpload({
         })
 
         if (response.data.success) {
-          const { summary: summaryData, file: fileInfo, extraction, totalProcessingTime } = response.data
+          const { summary: summaryData, file: fileInfo, extraction, extracted, totalProcessingTime } = response.data
           setSummary(summaryData.summary)
           setHighlights(summaryData.highlights || [])
           setMeta({
@@ -180,6 +226,17 @@ function FileUpload({
             extraction,
             processingTime: totalProcessingTime
           })
+          // Set extracted text for file uploads (prefer 'extracted' string; fall back safely)
+          if (setExtractedText) {
+            if (typeof extracted === 'string' && extracted.trim().length > 0) {
+              setExtractedText(extracted)
+            } else if (extraction && typeof extraction.text === 'string') {
+              setExtractedText(extraction.text)
+            } else {
+              // Clear to avoid rendering errors
+              setExtractedText('')
+            }
+          }
           toast?.push(`File processed successfully in ${totalProcessingTime}ms`, { type: 'success', ttl: 3000 })
         } else {
           throw new Error('Upload failed')
@@ -207,15 +264,22 @@ function FileUpload({
     console.log('Starting URL/text processing. URL:', url, 'Text:', rawText.slice(0, 50))
     try {
       resetStatuses()
-      const formData = new FormData()
-      if (activeTab === 'url' && url) formData.append('url', url)
-      if (activeTab === 'text' && rawText) formData.append('text', rawText)
-      formData.append('provider', provider)
-      formData.append('summaryStyle', style)
-      if (selectedFormats.length > 0) {
-        formData.append('output', selectedFormats.join(','))
+
+      // Prepare JSON payload for backend
+      let requestBody = {}
+      if (activeTab === 'url' && url) {
+        requestBody.url = url
+      } else if (activeTab === 'text' && rawText) {
+        requestBody.text = rawText
+        // Store the raw text for download
+        if (setExtractedText) {
+          setExtractedText(rawText)
+        }
       }
-      console.log('FormData prepared for tab:', activeTab)
+      requestBody.provider = provider === 'auto' ? null : provider // Let backend auto-select if auto
+      requestBody.summaryStyle = style
+
+      console.log('Request body prepared for tab:', activeTab, requestBody)
 
       const controller = new AbortController()
       abortRef.current = controller
@@ -223,31 +287,36 @@ function FileUpload({
       console.log('Making request to stream endpoint...')
       const resp = await fetch(`${apiUrl}/api/summarize/stream`, {
         method: 'POST',
-        body: formData,
-        headers: { 'x-stream-progress': '1' },
+        body: JSON.stringify(requestBody),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          'x-stream-progress': 'true'
+        },
         signal: controller.signal
       })
-      
-      console.log('Response received:', resp.ok, resp.status)
+
+      console.log('Response received:', resp.ok, resp.status, resp.statusText)
       if (!resp.ok) {
-        throw new Error('Streaming request failed')
+        const errorText = await resp.text().catch(() => 'Unknown error')
+        throw new Error(`Server returned ${resp.status}: ${errorText}`)
       }
-      
+
       const reader = resp.body.getReader()
       const decoder = new TextDecoder('utf-8')
       let buffer = ''
-      
+
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
         buffer += decoder.decode(value, { stream: true })
-        
+
         let idx
         while ((idx = buffer.indexOf('\n\n')) >= 0) {
           const rawEvent = buffer.slice(0, idx).trim()
           buffer = buffer.slice(idx + 2)
           if (!rawEvent) continue
-          
+
           const lines = rawEvent.split(/\n/)
           let eventName = null
           let dataLine = ''
@@ -256,7 +325,7 @@ function FileUpload({
             else if (ln.startsWith('data:')) dataLine += ln.replace('data:', '').trim()
           }
           if (!eventName) continue
-          
+
           try {
             const payload = dataLine ? JSON.parse(dataLine) : {}
             handleStreamEvent(eventName, payload)
@@ -269,9 +338,10 @@ function FileUpload({
       if (err.name === 'AbortError') {
         // Already handled
       } else {
-        console.error('Streaming error', err)
-        setError('Streaming failed')
-        toast?.push('Streaming failed', { type: 'error', ttl: 4000 })
+        console.error('Streaming error:', err)
+        const errorMsg = err.message || 'Streaming failed'
+        setError(errorMsg)
+        toast?.push(`Streaming failed: ${errorMsg}`, { type: 'error', ttl: 5000 })
       }
     } finally {
       streamingRef.current = false
@@ -291,26 +361,42 @@ function FileUpload({
         break
       case 'summary':
         console.log('Setting summary:', payload.summary ? payload.summary.slice(0, 100) + '...' : 'empty')
+        console.log('Extracted text length:', payload.extracted ? payload.extracted.length : 0)
+        console.log('Active tab:', activeTab)
+        
+        // Calculate processing time
+        const processingTime = startTimeRef.current ? Date.now() - startTimeRef.current : null
+        
         setSummary(payload.summary || '')
         setHighlights(payload.highlights || [])
-        setMeta({ provider: payload.provider, chunks: payload.chunks })
-        setProgressLabel && setProgressLabel(selectedFormats.length > 0 ? 'Generating exports…' : 'Summary ready')
-        if (selectedFormats.length === 0) toast?.push('Summary generated', { type: 'success', ttl: 2500 })
+        setMeta({ 
+          provider: payload.provider, 
+          chunks: payload.chunks,
+          processingTime: processingTime
+        })
+        
+        // Store extracted text ONLY for text input and file uploads, NOT for URL
+        if (setExtractedText && payload.extracted && activeTab !== 'url') {
+          console.log('Setting extracted text for', activeTab)
+          setExtractedText(payload.extracted)
+        } else {
+          console.log('NOT setting extracted text. Tab:', activeTab)
+          // Clear extracted text for URL inputs
+          if (activeTab === 'url' && setExtractedText) {
+            setExtractedText('')
+          }
+        }
+        setProgressLabel && setProgressLabel('Summary ready')
+        toast?.push('Summary generated', { type: 'success', ttl: 2500 })
         break
       case 'export-start':
-        if (setFormatStatus && payload.format) {
-          setFormatStatus(prev => ({ ...prev, [payload.format]: 'pending' }))
-        }
+        // Format export tracking removed
         break
       case 'export-done':
-        if (setFormatStatus && payload.format) {
-          setFormatStatus(prev => ({ ...prev, [payload.format]: 'done' }))
-        }
+        // Format export tracking removed
         break
       case 'export-error':
-        if (setFormatStatus && payload.format) {
-          setFormatStatus(prev => ({ ...prev, [payload.format]: 'error' }))
-        }
+        // Format export tracking removed
         toast?.push('Export error: ' + (payload.error || ''), { type: 'error', ttl: 4000 })
         break
       case 'download':
@@ -348,7 +434,7 @@ function FileUpload({
   return (
     <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm" onPaste={handlePaste}>
       <h2 className="text-xl font-semibold mb-4 text-gray-800">Upload / Input</h2>
-      
+
       {/* Input Method Tabs */}
       <div className="flex border-b border-gray-200 mb-5">
         {[
@@ -362,11 +448,10 @@ function FileUpload({
               key={tab.key}
               type="button"
               onClick={() => switchTab(tab.key)}
-              className={`flex-1 px-3 py-2 text-sm font-medium border-b-2 transition-colors relative ${
-                activeTab === tab.key
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`flex-1 px-3 py-2 text-sm font-medium border-b-2 transition-colors relative ${activeTab === tab.key
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               <div className="text-center">
                 <div className="flex items-center justify-center space-x-1">
@@ -434,19 +519,29 @@ function FileUpload({
             <input
               type="url"
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://hub.synerise.com/docs/automation/integration/whats-app/send-template-message/"
-              className="w-full p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              onChange={handleUrlChange}
+              placeholder="https://example.com/article"
+              className={`w-full p-3 border-2 rounded-lg focus:outline-none focus:ring-2 text-sm transition-colors ${
+                urlError 
+                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
+                  : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+              }`}
               autoFocus
             />
+            {urlError && (
+              <div className="flex items-center space-x-2 text-sm text-red-600 bg-red-50 p-2 rounded">
+                <span>⚠️</span>
+                <span>{urlError}</span>
+              </div>
+            )}
             <p className="text-xs text-gray-500 flex items-center space-x-1">
               <span>💡</span>
-              <span>Paste any article, blog post, or documentation URL to get an AI summary</span>
+              <span>Enter a complete website URL to extract and analyze ALL content from that page</span>
             </p>
-            {hasUrl && (
+            {hasUrl && !urlError && (
               <div className="flex items-center space-x-2 text-sm text-green-600 bg-green-50 p-2 rounded">
                 <span>✅</span>
-                <span>Ready to summarize web page content</span>
+                <span>Ready to extract full website content and summarize</span>
               </div>
             )}
           </div>
@@ -523,35 +618,22 @@ This is useful when you have raw text you want to summarize without uploading a 
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Provider</label>
-            <select
-              value={provider}
-              onChange={(e) => setProvider(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="gemini">Gemini</option>
-              <option value="local">Local (Fallback)</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Summary Style</label>
-            <div className="flex items-center space-x-3">
-              {STYLES.map(s => (
-                <label key={s.key} className="flex items-center space-x-1 text-xs cursor-pointer">
-                  <input
-                    type="radio"
-                    name="style"
-                    value={s.key}
-                    checked={style === s.key}
-                    onChange={() => setStyle(s.key)}
-                    className="text-blue-600 focus:ring-blue-500 h-3 w-3"
-                  />
-                  <span>{s.label}</span>
-                </label>
-              ))}
-            </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Summary Style</label>
+          <div className="flex items-center space-x-3">
+            {STYLES.map(s => (
+              <label key={s.key} className="flex items-center space-x-1 text-xs cursor-pointer">
+                <input
+                  type="radio"
+                  name="style"
+                  value={s.key}
+                  checked={style === s.key}
+                  onChange={() => setStyle(s.key)}
+                  className="text-blue-600 focus:ring-blue-500 h-3 w-3"
+                />
+                <span>{s.label}</span>
+              </label>
+            ))}
           </div>
         </div>
 
@@ -572,16 +654,14 @@ This is useful when you have raw text you want to summarize without uploading a 
               {loading ? (
                 <span className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  {selectedFormats.length > 0 ? 'Generating...' : 
-                   activeTab === 'url' ? 'Fetching & Summarizing...' :
-                   activeTab === 'file' ? 'Extracting & Summarizing...' : 'Summarizing...'}
+                  {activeTab === 'url' ? 'Fetching & Summarizing...' :
+                    activeTab === 'file' ? 'Extracting & Summarizing...' : 'Summarizing...'}
                 </span>
               ) : (
                 <span className="flex items-center justify-center space-x-2">
                   <span>
-                    {selectedFormats.length > 0 ? '📄 Generate & Download' : 
-                     activeTab === 'url' ? '🌐 Summarize URL' :
-                     activeTab === 'file' ? '📁 Summarize File' : '📝 Summarize Text'}
+                    {activeTab === 'url' ? '🌐 Summarize URL' :
+                      activeTab === 'file' ? '📁 Summarize File' : '📝 Summarize Text'}
                   </span>
                 </span>
               )}
@@ -594,7 +674,7 @@ This is useful when you have raw text you want to summarize without uploading a 
               >Cancel</button>
             )}
           </div>
-          <div className="flex justify-between items-center text-xs">
+          <div className="flex justify-start items-center text-xs">
             <button
               type="button"
               disabled={loading}
@@ -606,19 +686,9 @@ This is useful when you have raw text you want to summarize without uploading a 
               }}
               className="text-red-600 hover:underline disabled:text-gray-400"
             >Clear All Fields</button>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => {
-                if (!loading) {
-                  setFormatStatus && setFormatStatus({})
-                }
-              }}
-              className="text-blue-600 hover:underline disabled:text-gray-400"
-            >Reset statuses</button>
           </div>
         </div>
-        
+
         {/* Contextual hints */}
         <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
           {activeTab === 'url' && (

@@ -1,164 +1,267 @@
-import React from 'react'
+function SummaryPreview({ summary, highlights, meta, loading, onDownload, isDownloading, extractedText }) {
+  // Debug log
+  console.log('SummaryPreview - extractedText:', extractedText ? `${extractedText.length} chars` : 'empty')
+  
+  const formats = [
+    { key: 'pdf', label: 'PDF', icon: '📕', color: 'red' },
+    { key: 'docx', label: 'Word', icon: '📘', color: 'blue' },
+    { key: 'pptx', label: 'PowerPoint', icon: '📙', color: 'orange' },
+    { key: 'txt', label: 'Text', icon: '📄', color: 'gray' },
+    { key: 'png', label: 'Image', icon: '🖼️', color: 'green' }
+  ]
 
-function SummaryPreview({ summary, highlights, meta, loading }) {
   if (loading) {
     return (
       <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">Processing...</h2>
-          <div className="flex items-center space-x-2 text-xs text-gray-400">
-            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-            <span>Working</span>
-          </div>
-        </div>
-        <div className="space-y-4 animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-5/6" />
-          <div className="h-4 bg-gray-200 rounded w-11/12" />
-          <div className="h-4 bg-gray-200 rounded w-3/5" />
-          <div className="pt-4 space-y-2">
-            <div className="h-3 bg-gray-200 rounded w-24" />
-            <div className="h-3 bg-gray-200 rounded w-48" />
-            <div className="h-3 bg-gray-200 rounded w-40" />
-          </div>
+        <h2 className="text-xl font-semibold text-gray-800">Processing...</h2>
+      </div>
+    )
+  }
+
+  if (!summary) {
+    return (
+      <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
+        <div className="text-center py-16">
+          <h3 className="text-lg font-medium text-gray-700 mb-2">Your summary will appear here...</h3>
+          <p className="text-gray-500 text-sm">Upload a file, enter text, or provide a URL to get started</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-1">Summary Preview</h2>
-          {meta && meta.file && (
-            <p className="text-sm text-gray-600">
-              📄 {meta.file.originalName} ({(meta.file.size / 1024 / 1024).toFixed(1)}MB)
-            </p>
-          )}
-        </div>
-        {meta && (
-          <div className="text-right">
-            <div className="flex items-center space-x-3 text-xs text-gray-500 mb-1">
-              {meta.provider && (
-                <span className="inline-flex items-center space-x-1">
-                  <span className={`w-2 h-2 rounded-full ${
-                    meta.provider === 'gemini' ? 'bg-blue-500' : 'bg-gray-400'
-                  }`}></span>
-                  <span className="font-medium">{meta.provider === 'gemini' ? 'Gemini AI' : 'Local'}</span>
-                </span>
-              )}
-              {meta.chunks > 1 && (
-                <span>📃 {meta.chunks} chunks</span>
-              )}
-            </div>
-            {meta.processingTime && (
-              <div className="text-xs text-gray-400">
+    <div className="space-y-6">
+      {/* AI Summary Section */}
+      <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-800">📝 AI Summary</h2>
+          <div className="flex items-center gap-2">
+            {meta && meta.processingTime && (
+              <span className="text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-full font-medium border border-green-200">
                 ⚡ {meta.processingTime}ms
-              </div>
+              </span>
             )}
-          </div>
-        )}
-      </div>
-      {summary ? (
-        <div className="space-y-5">
-          <div className="relative">
-            <div className="absolute top-2 right-2 text-xs text-gray-400">
-              {summary.split(' ').length} words • {summary.length} chars
-            </div>
-            <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
-              <div className="flex items-center space-x-2 mb-2">
-                <span className="text-blue-600">🧠</span>
-                <span className="text-sm font-medium text-blue-800">AI Summary</span>
-              </div>
-              <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">{summary}</p>
-            </div>
-          </div>
-          {highlights && highlights.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <div className="flex items-center space-x-2 mb-3">
-                <span className="text-amber-600">🔍</span>
-                <h3 className="text-sm font-semibold text-amber-800">Key Highlights</h3>
-                <span className="text-xs text-amber-600 bg-amber-200 px-2 py-1 rounded-full">
-                  {highlights.length} found
-                </span>
-              </div>
-              <ul className="space-y-2">
-                {highlights.map((h, i) => (
-                  <li key={i} className="flex items-start space-x-2">
-                    <span className="text-amber-500 mt-1.5 text-xs">•</span>
-                    <span className="text-sm text-gray-700 leading-relaxed">{h}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
-            <button
-              onClick={() => navigator.clipboard.writeText(summary)}
-              className="inline-flex items-center space-x-1 px-3 py-2 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-            >
-              <span>📋</span>
-              <span>Copy Summary</span>
-            </button>
-            <button
-              onClick={() => {
-                const fullContent = `Summary:\n${summary}${highlights.length ? `\n\nKey Highlights:\n${highlights.map((h, i) => `${i+1}. ${h}`).join('\n')}` : ''}`
-                navigator.clipboard.writeText(fullContent)
-              }}
-              className="inline-flex items-center space-x-1 px-3 py-2 text-xs bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
-            >
-              <span>📋</span>
-              <span>Copy All</span>
-            </button>
-            <button
-              onClick={() => {
-                const fullContent = `Summary:\n${summary}${highlights.length ? `\n\nKey Highlights:\n${highlights.map((h, i) => `${i+1}. ${h}`).join('\n')}` : ''}`
-                const element = document.createElement('a')
-                const file = new Blob([fullContent], { type: 'text/plain' })
-                element.href = URL.createObjectURL(file)
-                element.download = 'mind-mesh-summary.txt'
-                document.body.appendChild(element)
-                element.click()
-                document.body.removeChild(element)
-              }}
-              className="inline-flex items-center space-x-1 px-3 py-2 text-xs bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
-            >
-              <span>📄</span>
-              <span>Download .txt</span>
-            </button>
-            {meta && meta.provider === 'gemini' && (
-              <div className="inline-flex items-center space-x-1 px-2 py-1 text-xs text-blue-600 bg-blue-50 rounded-lg">
-                <span>✨</span>
-                <span>AI Generated</span>
-              </div>
+            {meta && meta.chunks > 0 && (
+              <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                {meta.chunks} chunks
+              </span>
             )}
           </div>
         </div>
-      ) : (
-        <div className="text-center py-16">
-          <div className="text-gray-300 mb-4">
-            <svg className="mx-auto h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+        
+        <div className="p-5 bg-blue-50 rounded-lg border border-blue-100 mb-4">
+          <div className="prose max-w-none">
+            {summary.split('\n\n').map((paragraph, idx) => {
+              // Check if it's a bullet point
+              if (paragraph.trim().startsWith('•') || paragraph.trim().startsWith('-') || paragraph.trim().startsWith('*')) {
+                const items = paragraph.split('\n').filter(item => item.trim());
+                return (
+                  <ul key={idx} className="list-disc list-inside space-y-2 my-3">
+                    {items.map((item, i) => (
+                      <li key={i} className="text-gray-700 leading-relaxed">
+                        {item.replace(/^[•\-*]\s*/, '')}
+                      </li>
+                    ))}
+                  </ul>
+                )
+              }
+              // Check if it's a numbered list
+              if (/^\d+[\.)]\s/.test(paragraph.trim())) {
+                const items = paragraph.split('\n').filter(item => item.trim());
+                return (
+                  <ol key={idx} className="list-decimal list-inside space-y-2 my-3">
+                    {items.map((item, i) => (
+                      <li key={i} className="text-gray-700 leading-relaxed">
+                        {item.replace(/^\d+[\.)]\s*/, '')}
+                      </li>
+                    ))}
+                  </ol>
+                )
+              }
+              // Regular paragraph
+              return paragraph.trim() ? (
+                <p key={idx} className="text-gray-700 leading-relaxed mb-3">
+                  {paragraph}
+                </p>
+              ) : null
+            })}
           </div>
-          <h3 className="text-lg font-medium text-gray-700 mb-2">Your summary will appear here...</h3>
-          <p className="text-gray-500 text-sm mb-4">Choose your input method and generate a summary</p>
-          <div className="flex justify-center space-x-6 text-xs text-gray-400">
-            <div className="flex items-center space-x-1">
-              <span>🌐</span>
-              <span>Web URLs</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <span>📄</span>
-              <span>Documents</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <span>📝</span>
-              <span>Raw Text</span>
-            </div>
-          </div>
+        </div>
+
+        <button
+          onClick={() => navigator.clipboard.writeText(summary)}
+          className="px-3 py-2 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+        >
+          📋 Copy Summary
+        </button>
+      </div>
+
+      {/* Key Highlights Section */}
+      {highlights && highlights.length > 0 && (
+        <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-800 mb-3">💡 Key Highlights</h3>
+          <ul className="space-y-2">
+            {highlights.map((highlight, idx) => (
+              <li key={idx} className="flex items-start p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                <span className="text-blue-600 mr-2 mt-1">•</span>
+                <span className="text-gray-700 leading-relaxed">{highlight}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
+
+      {/* Extracted Text Section */}
+      {typeof extractedText === 'string' && extractedText.trim().length > 0 && (
+        <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-gray-800">📄 Extracted Text</h3>
+            <span className="text-xs text-gray-500">
+              {extractedText.length.toLocaleString()} characters
+            </span>
+          </div>
+          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 max-h-96 overflow-y-auto">
+            <div className="prose prose-sm max-w-none">
+              {extractedText.split('\n\n').map((section, idx) => {
+                // Check if it's a heading
+                if (section.trim().match(/^[A-Z\s]{3,}:?$/) || section.trim().startsWith('===') || section.trim().startsWith('###')) {
+                  return (
+                    <h4 key={idx} className="font-bold text-gray-900 text-sm mt-4 mb-2 pb-1 border-b border-gray-300">
+                      {section.replace(/^[=#\s]+/, '').replace(/[=#\s]+$/, '')}
+                    </h4>
+                  )
+                }
+                // Check if it's a bullet list
+                if (section.trim().startsWith('•') || section.trim().startsWith('-') || section.trim().startsWith('*')) {
+                  const items = section.split('\n').filter(item => item.trim());
+                  return (
+                    <ul key={idx} className="list-disc list-inside space-y-1 my-2 pl-2">
+                      {items.map((item, i) => (
+                        <li key={i} className="text-gray-600 text-sm leading-relaxed">
+                          {item.replace(/^[•\-*]\s*/, '')}
+                        </li>
+                      ))}
+                    </ul>
+                  )
+                }
+                // Check if it's a numbered list
+                if (/^\d+[\.)]\s/.test(section.trim())) {
+                  const items = section.split('\n').filter(item => item.trim());
+                  return (
+                    <ol key={idx} className="list-decimal list-inside space-y-1 my-2 pl-2">
+                      {items.map((item, i) => (
+                        <li key={i} className="text-gray-600 text-sm leading-relaxed">
+                          {item.replace(/^\d+[\.)]\s*/, '')}
+                        </li>
+                      ))}
+                    </ol>
+                  )
+                }
+                // Check if it's a table row
+                if (section.includes('|')) {
+                  return (
+                    <div key={idx} className="my-2 p-2 bg-white rounded border border-gray-300 overflow-x-auto">
+                      <pre className="text-xs text-gray-600 whitespace-pre font-mono">{section}</pre>
+                    </div>
+                  )
+                }
+                // Regular paragraph
+                return section.trim() ? (
+                  <p key={idx} className="text-gray-600 text-sm leading-relaxed mb-2">
+                    {section}
+                  </p>
+                ) : null
+              })}
+            </div>
+          </div>
+          <button
+            onClick={() => navigator.clipboard.writeText(extractedText)}
+            className="mt-3 px-3 py-2 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            📋 Copy Extracted Text
+          </button>
+        </div>
+      )}
+
+      {/* Export Section - refreshed card design */}
+      <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800">💾 Export Summary</h3>
+          {isDownloading && (
+            <span className="text-xs text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">Preparing download…</span>
+          )}
+        </div>
+        <p className="text-sm text-gray-600 mb-4">Pick a format. We’ll generate a clean, share-ready file.</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          {formats.map((format) => {
+            const accent =
+              format.color === 'red'
+                ? 'from-rose-50 to-red-50 border-red-200 hover:border-red-300'
+                : format.color === 'blue'
+                ? 'from-sky-50 to-blue-50 border-blue-200 hover:border-blue-300'
+                : format.color === 'orange'
+                ? 'from-amber-50 to-orange-50 border-orange-200 hover:border-orange-300'
+                : format.color === 'green'
+                ? 'from-emerald-50 to-green-50 border-green-200 hover:border-green-300'
+                : 'from-gray-50 to-slate-50 border-gray-200 hover:border-gray-300'
+            const circle =
+              format.color === 'red'
+                ? 'bg-red-100 text-red-700 ring-1 ring-red-200'
+                : format.color === 'blue'
+                ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-200'
+                : format.color === 'orange'
+                ? 'bg-orange-100 text-orange-700 ring-1 ring-orange-200'
+                : format.color === 'green'
+                ? 'bg-green-100 text-green-700 ring-1 ring-green-200'
+                : 'bg-gray-100 text-gray-700 ring-1 ring-gray-200'
+            const note =
+              format.key === 'pdf'
+                ? 'Best for printing'
+                : format.key === 'docx'
+                ? 'Edit in Word'
+                : format.key === 'pptx'
+                ? 'Present slides'
+                : format.key === 'png'
+                ? 'Share as image'
+                : 'Plain text'
+
+            const onKey = (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onDownload(format.key)
+              }
+            }
+
+            return (
+              <div
+                key={format.key}
+                role="button"
+                tabIndex={0}
+                onKeyDown={onKey}
+                onClick={() => onDownload(format.key)}
+                aria-label={`Download ${format.label}`}
+                className={`group relative overflow-hidden rounded-xl border ${accent} bg-gradient-to-br p-4 shadow-sm transition-all duration-200
+                  hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-200
+                  ${isDownloading ? 'pointer-events-none opacity-60' : ''}`}
+                title={`Download as ${format.label}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`h-10 w-10 flex items-center justify-center rounded-full ${circle}`}>
+                    <span className="text-xl leading-none">{format.icon}</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold text-gray-800">{format.label}</div>
+                    <div className="text-xs text-gray-500">{note}</div>
+                  </div>
+                </div>
+                <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-transparent via-white/40 to-transparent blur-md" />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
