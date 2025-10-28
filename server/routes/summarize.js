@@ -48,8 +48,11 @@ router.post('/', upload.single('file'), async (req, res) => {
     const provider = (req.body.provider || 'gemini').toLowerCase()
     const summaryStyle = (req.body.summaryStyle || 'short').toLowerCase()
     
+    // Extract custom filename if provided
+    const customFilename = req.body.filename || null
+    
     // Debug: Log processing parameters
-    console.log(`[DEBUG] Processing with provider: ${provider}, style: ${summaryStyle}`)
+    console.log(`[DEBUG] Processing with provider: ${provider}, style: ${summaryStyle}, customFilename: ${customFilename}`)
 
     const outputRaw = req.body.output
     const formats = outputRaw ? outputRaw.split(',').map(f => f.trim().toLowerCase()).filter(Boolean) : []
@@ -67,7 +70,7 @@ router.post('/', upload.single('file'), async (req, res) => {
     try {
       const uniqueFormats = [...new Set(formats)]
       if (uniqueFormats.length === 1) {
-        const file = await generateOne(uniqueFormats[0], result)
+        const file = await generateOne(uniqueFormats[0], result, customFilename)
         res.setHeader('Content-Type', file.mime)
         res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`)
         return res.send(file.buffer)
@@ -140,6 +143,9 @@ router.post('/stream', upload.single('file'), async (req, res) => {
     const summaryStyle = (req.body.summaryStyle || 'short').toLowerCase()
     const outputRaw = req.body.output
     const formats = outputRaw ? outputRaw.split(',').map(f => f.trim().toLowerCase()).filter(Boolean) : []
+    
+    // Extract custom filename if provided
+    const customFilename = req.body.filename || null
 
     // Summarization progress (basic heuristic: chunk count)
     send('stage', { stage: 'summarizing', provider, style: summaryStyle })
@@ -160,7 +166,7 @@ router.post('/stream', upload.single('file'), async (req, res) => {
       const f = uniqueFormats[0]
       send('export-start', { format: f })
       try {
-        const file = await generateOne(f, summaryResult)
+        const file = await generateOne(f, summaryResult, customFilename)
         if (aborted) return safeEnd()
         // base64 encode
         const base64 = file.buffer.toString('base64')

@@ -9,32 +9,32 @@ function LandingPage() {
     {
       icon: '🤖',
       title: 'AI-Powered Summarization',
-      description: 'Advanced Gemini 2.5 Flash AI instantly transforms lengthy documents into concise, meaningful summaries.'
+      description: 'Gemini 2.5 Flash, Groq, and DeepSeek work together to deliver rich, trustworthy summaries in seconds.'
     },
     {
       icon: '📁',
-      title: 'Multiple Input Methods',
-      description: 'Upload files (PDF, DOCX, PPTX), paste text directly, or fetch content from any URL - all in one place.'
+      title: 'Flexible Input Options',
+      description: 'Upload PDFs, DOCX, PPTX, paste raw text, or pull live content from any public URL without friction.'
     },
     {
       icon: '💡',
       title: 'Smart Key Highlights',
-      description: 'Automatically extracts and highlights the most important points from your content.'
+      description: 'Automatically surfaces the critical takeaways so you never miss the most important insights.'
     },
     {
       icon: '🎨',
       title: 'Flexible Summary Styles',
-      description: 'Choose from Short, Medium, Long, or Bullet Points format to match your needs perfectly.'
+      description: 'Choose your tone (Standard, Executive, Academic, Casual, Technical, Story) and length (Short, Medium, Long, Bullets) for 24 unique combinations.'
     },
     {
       icon: '💾',
       title: 'Export to Multiple Formats',
-      description: 'Download your summaries as PDF, Word, PowerPoint, Text, or Image - ready to share anywhere.'
+      description: 'Download your summaries as PDF, Word, PowerPoint, Text, Image, or MP4 Video with AI voiceover—ready to share anywhere.'
     },
     {
       icon: '⚡',
-      title: 'Real-Time Processing',
-      description: 'Live progress updates and streaming responses keep you informed every step of the way.'
+      title: 'Live Progress Updates',
+      description: 'Streaming responses and granular progress indicators keep you informed at every step.'
     }
   ]
 
@@ -184,7 +184,7 @@ function LandingPage() {
                   <h3 className="text-2xl font-bold text-gray-900 mb-2">Download & Share</h3>
                   <p className="text-gray-600 leading-relaxed">
                     Get your summary instantly and export it in your preferred format: PDF, Word, PowerPoint, 
-                    Text, or Image. Ready to share with your team!
+                    Text, Image, or MP4 Video with AI voiceover. Ready to share with your team!
                   </p>
                 </div>
               </div>
@@ -249,8 +249,9 @@ function LandingPage() {
               <h4 className="text-white font-semibold mb-4">Features</h4>
               <ul className="space-y-2 text-sm">
                 <li>• AI Summarization</li>
-                <li>• Multiple Formats</li>
-                <li>• Export Options</li>
+                <li>• Multiple Input Formats</li>
+                <li>• MP4 Video Export</li>
+                <li>• 6 Export Formats</li>
                 <li>• Real-time Processing</li>
               </ul>
             </div>

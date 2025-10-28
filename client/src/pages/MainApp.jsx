@@ -5,6 +5,7 @@ import pkg from '../../package.json'
 import FileUpload from '../components/FileUpload'
 import ProgressBar from '../components/ProgressBar'
 import SummaryPreview from '../components/SummaryPreview'
+import ExportControls from '../components/ExportControls'
 import MindMeshLogo from '../components/MindMeshLogo'
 import { useToast } from '../components/ToastHost'
 
@@ -24,7 +25,7 @@ function MainApp() {
   useEffect(() => { localStorage.setItem('mm.provider', providerPref) }, [providerPref])
   useEffect(() => { localStorage.setItem('mm.style', stylePref) }, [stylePref])
 
-  const handleDownload = async (format) => {
+  const handleDownload = async (format, customFilename = null) => {
     if (!summary || !format) {
       toast?.push('No summary to download', { type: 'error' })
       return
@@ -41,17 +42,19 @@ function MainApp() {
           text: extractedText || summary, // Use original text or fallback to summary
           provider: providerPref,
           summaryStyle: stylePref,
-          output: format
+          output: format,
+          filename: customFilename // Pass custom filename to backend
         },
         {
           responseType: 'blob'
         }
       )
 
-      // Extract filename from content-disposition header or generate one
+      // Use custom filename or extract from header
+      let filename = customFilename ? `${customFilename}.${format}` : `summary.${format}`
+      
       const contentDisposition = response.headers['content-disposition']
-      let filename = `summary.${format}`
-      if (contentDisposition) {
+      if (contentDisposition && !customFilename) {
         const match = contentDisposition.match(/filename="?([^"]+)"?/)
         if (match) filename = match[1]
       }
@@ -126,7 +129,13 @@ function MainApp() {
                 setProgressLabel={setProgressLabel}
                 setExtractedText={setExtractedText}
               />
-              <ProgressBar visible={loading} label={progressLabel || 'Processing...'} />
+              
+              {/* Export Controls below input */}
+              <ExportControls 
+                summary={summary}
+                onDownload={handleDownload}
+                isDownloading={isDownloading}
+              />
             </div>
 
             {/* Right Column - Output Section */}
@@ -151,7 +160,7 @@ function MainApp() {
                 <span>Mind-Mesh v{pkg.version}</span>
               </div>
               <p className="text-xs text-gray-400">
-                Powered by Advanced AI • Built with ❤️
+                Powered by Advanced AI
               </p>
             </div>
           </footer>

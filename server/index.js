@@ -8,6 +8,7 @@ import ocrTestRouter from './routes/ocrTest.js'
 import fileUploadRouter from './routes/fileUpload.js'
 import { diagnosticsRouter } from './routes/libreDiag.js'
 import exportRouter from './routes/export.js'
+import ttsRouter from './routes/tts.js'
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -32,6 +33,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }))
 
 app.use('/api/summarize', summarizeRouter)
 app.use('/api/export', exportRouter)
+app.use('/api', ttsRouter)
 app.use('/api', fileUploadRouter)
 app.use('/api', diagnosticsRouter)
 // OCR test endpoint (development only)

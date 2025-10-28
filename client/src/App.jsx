@@ -21,7 +21,7 @@ function AppContent() {
   useEffect(() => { localStorage.setItem('mm.provider', providerPref) }, [providerPref])
   useEffect(() => { localStorage.setItem('mm.style', stylePref) }, [stylePref])
 
-  const handleDownload = async (format) => {
+  const handleDownload = async (format, customFilename = null) => {
     if (!summary || !format) {
       toast?.push('No summary to download', { type: 'error' })
       return
@@ -38,17 +38,19 @@ function AppContent() {
           text: extractedText || summary, // Use original text or fallback to summary
           provider: providerPref,
           summaryStyle: stylePref,
-          output: format
+          output: format,
+          filename: customFilename // Pass custom filename to backend
         },
         {
           responseType: 'blob'
         }
       )
 
-      // Extract filename from content-disposition header or generate one
+      // Use custom filename or extract from header
+      let filename = customFilename ? `${customFilename}.${format}` : `summary.${format}`
+      
       const contentDisposition = response.headers['content-disposition']
-      let filename = `summary.${format}`
-      if (contentDisposition) {
+      if (contentDisposition && !customFilename) {
         const match = contentDisposition.match(/filename="?([^"]+)"?/)
         if (match) filename = match[1]
       }

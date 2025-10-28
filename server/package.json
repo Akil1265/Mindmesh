@@ -27,6 +27,7 @@
     "openai": "^4.0.0",
     "pdf-parse": "^1.1.2",
     "pdfkit": "^0.15.0",
+  "say": "^0.16.0",
     "pptx2json": "^0.0.10",
     "pptxgenjs": "^3.12.0",
     "pptxtojson": "^1.6.0",

@@ -17,10 +17,19 @@ function triggerDownload(blob, filename) {
 }
 
 const STYLES = [
-  { key: 'short', label: 'Short' },
-  { key: 'medium', label: 'Medium' },
-  { key: 'long', label: 'Long' },
-  { key: 'bullets', label: 'Bullets' }
+  { key: 'standard', label: 'Standard', desc: 'Professional balanced tone', icon: '📄' },
+  { key: 'executive', label: 'Executive', desc: 'C-suite strategic brief', icon: '💼' },
+  { key: 'academic', label: 'Academic', desc: 'Formal scholarly tone', icon: '🎓' },
+  { key: 'casual', label: 'Casual', desc: 'Friendly conversational', icon: '💬' },
+  { key: 'technical', label: 'Technical', desc: 'Precise terminology', icon: '⚙️' },
+  { key: 'storytelling', label: 'Story', desc: 'Narrative flow style', icon: '📖' }
+]
+
+const LENGTHS = [
+  { key: 'short', label: 'Short', desc: '1-2 sentences', icon: '⚡' },
+  { key: 'medium', label: 'Medium', desc: 'One paragraph', icon: '📝' },
+  { key: 'long', label: 'Long', desc: 'Multiple paragraphs', icon: '📚' },
+  { key: 'bullets', label: 'Bullets', desc: 'Quick points', icon: '📌' }
 ]
 
 function FileUpload({
@@ -41,7 +50,9 @@ function FileUpload({
   const [url, setUrl] = useState('')
   const [urlError, setUrlError] = useState('')
   const [provider, setProvider] = useState(providerPref || 'gemini')
-  const [style, setStyle] = useState(stylePref || 'short')
+  const [styleType, setStyleType] = useState('standard') // Style: standard, executive, academic, etc.
+  const [length, setLength] = useState('medium') // Length: short, medium, long, bullets
+  const [style, setStyle] = useState(stylePref || 'medium') // Combined for backward compatibility
   const [rawText, setRawText] = useState('')
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('url')
@@ -90,7 +101,12 @@ function FileUpload({
   }
 
   useEffect(() => { onProviderChange && onProviderChange(provider) }, [provider])
-  useEffect(() => { onStyleChange && onStyleChange(style) }, [style])
+  useEffect(() => { 
+    // Combine styleType and length into a single style string
+    const combinedStyle = styleType === 'standard' ? length : `${styleType}-${length}`
+    setStyle(combinedStyle)
+    onStyleChange && onStyleChange(combinedStyle) 
+  }, [styleType, length])
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
@@ -166,6 +182,9 @@ function FileUpload({
       streamingRef.current = false
       setProgressLabel && setProgressLabel('Cancelled')
       setLoading(false)
+      setSummary('')
+      setHighlights([])
+      setMeta(null)
       toast?.push('Operation cancelled', { type: 'info', ttl: 2500 })
     }
   }
@@ -206,13 +225,18 @@ function FileUpload({
     // File upload endpoint
     if (activeTab === 'file' && file) {
       try {
+        // Create abort controller for file uploads too
+        const controller = new AbortController()
+        abortRef.current = controller
+        
         const formData = new FormData()
         formData.append('file', file)
         formData.append('summaryStyle', style)
         formData.append('language', 'en')
 
         const response = await axios.post(`${apiUrl}/api/upload-and-summarize`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
+          headers: { 'Content-Type': 'multipart/form-data' },
+          signal: controller.signal
         })
 
         if (response.data.success) {
@@ -241,12 +265,20 @@ function FileUpload({
         } else {
           throw new Error('Upload failed')
         }
+        abortRef.current = null
         setLoading(false)
         return
       } catch (err) {
+        // Handle abort/cancellation
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+          // Already handled by cancelActive
+          return
+        }
+        
         console.error('Upload error:', err)
         const errorMessage = err.response?.data?.error || err.message || 'Upload failed'
         setError(errorMessage)
+        abortRef.current = null
         setLoading(false)
         // Provide more specific error feedback
         if (err.response?.status === 413) {
@@ -356,7 +388,7 @@ function FileUpload({
       case 'stage':
         if (payload.stage === 'extracting') setProgressLabel && setProgressLabel('Extracting text…')
         else if (payload.stage === 'fetching-url') setProgressLabel && setProgressLabel('Fetching URL…')
-        else if (payload.stage === 'summarizing') setProgressLabel && setProgressLabel('Summarizing with ' + payload.provider + '…')
+        else if (payload.stage === 'summarizing') setProgressLabel && setProgressLabel('Generating summary…')
         else if (payload.stage === 'start') setProgressLabel && setProgressLabel('Starting…')
         break
       case 'summary':
@@ -579,9 +611,6 @@ function FileUpload({
               <label htmlFor="fileInput" className="block cursor-pointer space-y-2">
                 <div className="text-4xl">📎</div>
                 <div className="font-semibold">Drag & Drop / Click to Select</div>
-                <div className="text-xs text-gray-500">
-                  Supports: PDF, DOCX, PPTX, DOC, PPT, TXT, Images
-                </div>
                 <div className="text-xs text-blue-500">Or paste a file here</div>
               </label>
             )}
@@ -618,22 +647,64 @@ This is useful when you have raw text you want to summarize without uploading a 
           </div>
         )}
 
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Summary Style</label>
-          <div className="flex items-center space-x-3">
-            {STYLES.map(s => (
-              <label key={s.key} className="flex items-center space-x-1 text-xs cursor-pointer">
-                <input
-                  type="radio"
-                  name="style"
-                  value={s.key}
-                  checked={style === s.key}
-                  onChange={() => setStyle(s.key)}
-                  className="text-blue-600 focus:ring-blue-500 h-3 w-3"
-                />
-                <span>{s.label}</span>
-              </label>
-            ))}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              📋 Summary Style
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {STYLES.map(s => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => setStyleType(s.key)}
+                  className={`flex flex-col items-center p-3 border-2 rounded-lg transition-all ${
+                    styleType === s.key 
+                      ? 'border-blue-500 bg-blue-50 shadow-sm' 
+                      : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="text-2xl mb-1">{s.icon}</span>
+                  <span className="text-xs font-medium text-gray-800">{s.label}</span>
+                  <span className="text-xs text-gray-500 text-center mt-1">{s.desc}</span>
+                  {styleType === s.key && <span className="text-blue-600 text-xs mt-1">✓</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              📏 Summary Length
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {LENGTHS.map(l => (
+                <button
+                  key={l.key}
+                  type="button"
+                  onClick={() => setLength(l.key)}
+                  className={`flex flex-col items-center p-3 border-2 rounded-lg transition-all ${
+                    length === l.key 
+                      ? 'border-green-500 bg-green-50 shadow-sm' 
+                      : 'border-gray-200 bg-white hover:border-green-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="text-xl mb-1">{l.icon}</span>
+                  <span className="text-xs font-medium text-gray-800">{l.label}</span>
+                  <span className="text-xs text-gray-500 text-center mt-1">{l.desc}</span>
+                  {length === l.key && <span className="text-green-600 text-xs mt-1">✓</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-center space-x-2 text-sm text-blue-800">
+              <span>📊</span>
+              <span className="font-medium">
+                Selected: <span className="font-bold">{STYLES.find(s => s.key === styleType)?.label}</span> + <span className="font-bold">{LENGTHS.find(l => l.key === length)?.label}</span>
+              </span>
+            </div>
           </div>
         </div>
 
@@ -683,38 +754,13 @@ This is useful when you have raw text you want to summarize without uploading a 
                 setFile(null)
                 setRawText('')
                 setError(null)
+                setStyleType('standard')
+                setLength('medium')
+                setUrlError('')
               }}
               className="text-red-600 hover:underline disabled:text-gray-400"
             >Clear All Fields</button>
           </div>
-        </div>
-
-        {/* Contextual hints */}
-        <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
-          {activeTab === 'url' && (
-            <div className="space-y-1">
-              <div className="font-medium text-gray-700">💡 URL Tips:</div>
-              <div>• Works with articles, documentation, blog posts, and web pages</div>
-              <div>• Automatically extracts readable content and removes navigation/ads</div>
-              <div>• Try it with documentation URLs for quick summaries</div>
-            </div>
-          )}
-          {activeTab === 'file' && (
-            <div className="space-y-1">
-              <div className="font-medium text-gray-700">📁 File Tips:</div>
-              <div>• PDF, DOCX, PPTX, DOC, PPT, TXT, and image files supported</div>
-              <div>• PPTX/PPT/DOC require LibreOffice (configure SOFFICE_PATH if needed)</div>
-              <div>• Images use OCR for text extraction</div>
-            </div>
-          )}
-          {activeTab === 'text' && (
-            <div className="space-y-1">
-              <div className="font-medium text-gray-700">📝 Text Tips:</div>
-              <div>• Paste content directly from clipboard</div>
-              <div>• Good for email content, chat transcripts, or raw text</div>
-              <div>• Supports multiple languages and formats</div>
-            </div>
-          )}
         </div>
       </form>
     </div>
