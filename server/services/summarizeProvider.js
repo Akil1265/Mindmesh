@@ -219,7 +219,9 @@ async function callDeepSeek(prompt) {
     temperature: 0.3,
     max_tokens: 1200
   })
-  return response.choices[0].message.content.trim()
+  const content = response.choices[0].message.content.trim()
+  // Remove literal \n\n escape sequences
+  return content.replace(/\\n\\n/g, '\n\n').replace(/\\n/g, '\n')
 }
 
 async function callGroq(prompt) {
@@ -230,7 +232,9 @@ async function callGroq(prompt) {
     temperature: 0.3,
     max_tokens: 1200
   })
-  return response.choices[0].message.content.trim()
+  const content = response.choices[0].message.content.trim()
+  // Remove literal \n\n escape sequences
+  return content.replace(/\\n\\n/g, '\n\n').replace(/\\n/g, '\n')
 }
 
 async function callAIML(prompt) {
@@ -244,13 +248,17 @@ async function callAIML(prompt) {
     headers: { 'Authorization': `Bearer ${aimlKey}`, 'Content-Type': 'application/json' },
     timeout: 30000
   })
-  return response.data.choices[0].message.content.trim()
+  const content = response.data.choices[0].message.content.trim()
+  // Remove literal \n\n escape sequences
+  return content.replace(/\\n\\n/g, '\n\n').replace(/\\n/g, '\n')
 }
 
 async function callGemini(prompt) {
   if (!geminiModel) throw new Error('Gemini not initialized')
   const result = await geminiModel.generateContent(prompt)
-  return result.response.text().trim()
+  const content = result.response.text().trim()
+  // Remove literal \n\n escape sequences
+  return content.replace(/\\n\\n/g, '\n\n').replace(/\\n/g, '\n')
 }
 
 function buildPrompt(text, style, feedback = null) {
