@@ -24,12 +24,11 @@ router.get('/', async (req, res) => {
       timeout: 15000
     })
 
-    const html = typeof response.data === 'string' ? response.data : ''
+  const html = typeof response.data === 'string' ? response.data : ''
 
-    // Basic privacy/publicity detection for common login walls (LinkedIn etc.)
-    // If the target is LinkedIn or the fetched HTML looks like a login/signup wall,
-    // do NOT return the full HTML. Instead return a public:false flag and reason.
-    const lc = html.toLowerCase()
+  // Basic privacy/publicity detection for common login walls (LinkedIn etc.)
+  // If the target is LinkedIn or the fetched HTML looks like a login/signup wall,
+  // do NOT return the full HTML. Instead return a public:false flag and reason.
     const isLinkedIn = /linkedin\.com/.test(url)
     const looksLikeLogin = /sign in to linkedin|linkedin authentication|id="session_key"|name="session_key"|class="signin"|aria-label="Sign in"/i.test(html)
 

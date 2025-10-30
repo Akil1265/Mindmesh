@@ -51,7 +51,7 @@ async function safePdfParse(buffer) {
   }
 }
 
-async function safeOcr(buffer, options = {}) {
+async function safeOcr(buffer) {
   const tesseract = await loadTesseract()
   if (!tesseract) return ''
   
@@ -72,6 +72,8 @@ async function safeOcr(buffer, options = {}) {
 import mammoth from "mammoth";
 import fetch from "node-fetch";
 import { load as cheerioLoad } from "cheerio";
+
+/* global document */
 
 // Full website content extraction using Puppeteer
 async function extractWebsiteContent(url) {
@@ -291,8 +293,8 @@ async function extractWebsiteContent(url) {
       
       const html = await res.text()
       const $ = cheerioLoad(html)
-      
-      ["script","style","nav","header","footer","noscript","iframe"].forEach(tag => $(tag).remove())
+      const tagsToStrip = ["script","style","nav","header","footer","noscript","iframe"]
+      tagsToStrip.forEach(tag => $(tag).remove())
       
       const title = $("title").first().text().trim()
       const paragraphs = $("p")
@@ -368,7 +370,8 @@ export async function extractText(source) {
     try {
       const html = buffer.toString("utf8");
       const $ = cheerioLoad(html);
-      ["script","style","nav","header","footer","noscript","iframe"].forEach(tag => $(tag).remove());
+      const tagsToStrip = ["script","style","nav","header","footer","noscript","iframe"]
+      tagsToStrip.forEach(tag => $(tag).remove());
       return $("body").text().replace(/\s+/g, ' ').trim() || $.text().replace(/\s+/g, ' ').trim();
     } catch (e) {
       console.error('[extractText] HTML parsing failed:', e.message)

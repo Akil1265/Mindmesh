@@ -100,14 +100,14 @@ export async function summarize(text, { style = 'medium' } = {}) {
     summaries.push(result)
   }
   
-  let finalSummary = summaries.length === 1 ? summaries[0] : await processWithRaceAndQuality(summaries.join('\n\n'), style, { isMerge: true })
+  let finalSummary = summaries.length === 1 ? summaries[0] : await processWithRaceAndQuality(summaries.join('\n\n'), style)
   const highlights = extractHighlights(cleaned)
   
   console.log('✅ [Complete]\n')
   return { summary: finalSummary, provider: 'gemini', highlights, chunks: chunks.length }
 }
 
-async function processWithRaceAndQuality(text, style, { isMerge = false } = {}) {
+async function processWithRaceAndQuality(text, style) {
   console.log('🏁 [Race] DeepSeek vs Groq')
   let summary = await raceProviders(text, style)
   
@@ -401,7 +401,7 @@ REQUIRED ACTIONS:
   
   // 2. CHECK: Bullet format and structure
   if (isBullets) {
-    const hasBullets = /^[•\-\*\d]/m.test(summary)
+  const hasBullets = /^[•*\d-]/m.test(summary)
     if (!hasBullets) {
       return {
         pass: false,
@@ -425,7 +425,7 @@ EXAMPLE FORMAT:
 IMPORTANT: The format MUST match this structure exactly. No paragraphs allowed.`
       }
     }
-    const bulletCount = (summary.match(/^[•\-\*]/gm) || []).length
+  const bulletCount = (summary.match(/^[•*-]/gm) || []).length
     if (bulletCount < 4) {
       return {
         pass: false,
@@ -577,7 +577,7 @@ REMEMBER: Long summaries without paragraph breaks are hard to read. Break them u
   contentWords.forEach(word => {
     wordFreq[word] = (wordFreq[word] || 0) + 1
   })
-  const repeatedWords = Object.entries(wordFreq).filter(([word, count]) => count > 3)
+  const repeatedWords = Object.entries(wordFreq).filter(([, count]) => count > 3)
   
   if (repeatedWords.length > 0) {
     const repeated = repeatedWords.map(([word, count]) => `"${word}" (${count} times)`).slice(0, 5).join(', ')

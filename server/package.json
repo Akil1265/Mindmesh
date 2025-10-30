@@ -1,4 +1,5 @@
 {
+  "json.validate.enable": false,
   "name": "mindmesh-server",
   "version": "0.0.1",
   "type": "module",
