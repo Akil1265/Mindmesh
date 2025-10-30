@@ -10,7 +10,8 @@
     "client:preview": "cd client && npm run preview",
     "install:all": "npm install && cd client && npm install && cd ../server && npm install",
     "lint": "cd server && npm run lint",
-    "build": "npm run client:build"
+    "build": "npm run client:build",
+    "test": "npm run lint"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
