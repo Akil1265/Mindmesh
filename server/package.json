@@ -1,0 +1,45 @@
+{
+  "json.validate.enable": false,
+  "name": "mindmesh-server",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "start": "node index.js",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.11.3",
+    "archiver": "^6.0.2",
+    "axios": "^1.6.0",
+    "cheerio": "^1.1.2",
+    "cors": "^2.8.5",
+    "docx": "^8.5.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.2",
+    "express-rate-limit": "^6.7.0",
+    "groq-sdk": "^0.7.0",
+    "helmet": "^7.0.0",
+    "jimp": "^1.6.0",
+    "jszip": "^3.10.1",
+    "mammoth": "^1.11.0",
+    "multer": "^2.0.2",
+    "node-fetch": "^3.3.2",
+    "openai": "^4.0.0",
+    "pdf-parse": "^1.1.2",
+    "pdfkit": "^0.15.0",
+  "say": "^0.16.0",
+    "pptx2json": "^0.0.10",
+    "pptxgenjs": "^3.12.0",
+    "pptxtojson": "^1.6.0",
+    "tesseract.js": "^5.1.1",
+    "xml2js": "^0.6.2"
+  },
+  "optionalDependencies": {
+    "puppeteer": "^22.15.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "nodemon": "^3.0.0"
+  }
+}

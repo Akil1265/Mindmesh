@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Build output
+/dist/
+client/dist/
+server/dist/
+coverage/
+client/coverage/
+server/coverage/
+
+# Environment files
+*.env
+!.env.example
+server/.env
+client/.env
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Uploads and generated assets
+uploads/
+server/uploads/
+
+# IDE/editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Vite cache
+client/.vite/
